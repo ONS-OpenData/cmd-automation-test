@@ -1,3 +1,6 @@
+import requests
+import json
+
 def Get_Access_Token(credentials): # create inputs for email and password
     ### getting access_token ###
     '''
@@ -269,7 +272,7 @@ def Get_Job_Info(access_token, job_id):
 
 
 def Upload_Data_To_Florence(credentials, dataset_id, aws_link):
-    '''same as function name'''
+    '''Uploads v4 to florence'''
     # get access_token
     access_token = Get_Access_Token(credentials)
     
