@@ -148,7 +148,7 @@ def Get_Dataset_Jobs_Api(access_token):
     dataset_jobs_api_url = 'https://publishing.develop.onsdigital.co.uk/dataset/jobs'
     headers = {'X-Florence-Token':access_token}
 
-    r = requests.get(dataset_jobs_api_url, headers=headers)
+    r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers)
     if r.status_code == 200:
         dataset_jobs_dict = r.json()
         return dataset_jobs_dict
@@ -162,8 +162,8 @@ def Get_Latest_Job_Id(access_token):
     Uses Get_Dataset_Jobs_Api()
     '''
     dataset_jobs_dict = Get_Dataset_Jobs_Api(access_token)
-    latest_id = dataset_jobs_dict[-1]['id']
-    recipe_id = dataset_jobs_dict[-1]['recipe'] # to be used as a quick check
+    latest_id = dataset_jobs_dict['items'][-1]['id']
+    recipe_id = dataset_jobs_dict['items'][-1]['recipe'] # to be used as a quick check
     return latest_id, recipe_id
 
 
