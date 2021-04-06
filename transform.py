@@ -30,7 +30,8 @@ def Transform():
     source = pd.read_csv(input_file, dtype=str)
 
     source.columns = [col.strip() for col in source.columns] # removing whitespace
-    source['time'] = source['time.1']
+    source.columns = ['v4_0', 'timeunit', 'time', 'uk_only', 'geography', 'cpih1dim1', 'aggregate']
+    
     source['time_codelist'] = source['time']
 
     # reordering columns
@@ -51,7 +52,8 @@ def Transform():
         )
 
     # read in previous v4 file - which is same as output file
-    previous_v4 = Get_Latest_Version_From_CMD()
+    #previous_v4 = Get_Latest_Version_From_CMD()
+    previous_v4 = pd.read_csv(output_file, dtype=str) # output_file is also previous v4
 
     # combine the two
     df = pd.concat([previous_v4, source])
