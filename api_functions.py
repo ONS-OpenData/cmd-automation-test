@@ -15,7 +15,7 @@ def Get_Access_Token(credentials): # create inputs for email and password
     password = credentials_json['password']
     login = {"email":email, "password":password}
     
-    r = requests.post(zebedee_url, json=login)
+    r = requests.post(zebedee_url, json=login, verify=False)
     if r.status_code == 200:
         access_token = r.text.strip('"')
         return access_token
@@ -29,7 +29,7 @@ def Get_Recipe_Api(access_token):
     recipe_api_url = 'https://publishing.develop.onsdigital.co.uk/recipes'
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(recipe_api_url + '?limit=1000', headers=headers)
+    r = requests.get(recipe_api_url + '?limit=1000', headers=headers, verify=False)
     
     if r.status_code == 200:
         recipe_dict = r.json()
@@ -91,7 +91,7 @@ def Get_Recipe_Info_From_Recipe_Id(access_token, recipe_id):
     
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(single_recipe_url, headers=headers)
+    r = requests.get(single_recipe_url, headers=headers, verify=False)
     if r.status_code == 200:
         single_recipe_dict = r.json()
         return single_recipe_dict
@@ -106,9 +106,7 @@ def Get_Dataset_Instances_Api(access_token):
     dataset_instances_api_url = 'https://publishing.develop.onsdigital.co.uk/dataset/instances'
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(dataset_instances_api_url, headers=headers)
-    
-    r = requests.get(dataset_instances_api_url + '?limit=1000', headers=headers)
+    r = requests.get(dataset_instances_api_url + '?limit=1000', headers=headers, verify=False)
     if r.status_code == 200:
         whole_dict = r.json()
         total_count = whole_dict['total_count']
@@ -146,7 +144,7 @@ def Get_Dataset_Instance_Info(access_token, instance_id):
     dataset_instances_url = 'https://publishing.develop.onsdigital.co.uk/dataset/instances/' + instance_id
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(dataset_instances_url, headers=headers)
+    r = requests.get(dataset_instances_url, headers=headers, verify=False)
     if r.status_code == 200:
         dataset_instances_dict = r.json()
         return dataset_instances_dict
@@ -161,10 +159,8 @@ def Get_Dataset_Jobs_Api(access_token):
 
     dataset_jobs_api_url = 'https://publishing.develop.onsdigital.co.uk/dataset/jobs'
     headers = {'X-Florence-Token':access_token}
-
-    r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers)
     
-    r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers)
+    r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers, verify=False)
     if r.status_code == 200:
         whole_dict = r.json()
         total_count = whole_dict['total_count']
@@ -220,7 +216,7 @@ def Post_New_Job(access_token, dataset_id, s3_url):
         ]
     }
         
-    r = requests.post(dataset_jobs_api_url, headers=headers, json=new_job_json)
+    r = requests.post(dataset_jobs_api_url, headers=headers, json=new_job_json, verify=False)
     if r.status_code == 201:
         print('Job created succefully')
     else:
@@ -254,7 +250,7 @@ def Update_State_Of_Job(access_token, job_id):
     job_id_dict = Get_Job_Info(access_token, job_id)
     
     if len(job_id_dict['files']) != 0:
-        r = requests.put(updating_state_of_job_url, headers=headers, json=updating_state_of_job_json)
+        r = requests.put(updating_state_of_job_url, headers=headers, json=updating_state_of_job_json, verify=False)
         if r.status_code == 200:
             print('State updated successfully')
         else:
@@ -270,7 +266,7 @@ def Get_Job_Info(access_token, job_id):
     dataset_jobs_id_url = 'https://publishing.develop.onsdigital.co.uk/dataset/jobs/' + job_id
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(dataset_jobs_id_url, headers=headers)
+    r = requests.get(dataset_jobs_id_url, headers=headers, verify=False)
     if r.status_code == 200:
         job_info_dict = r.json()
         return job_info_dict
@@ -324,7 +320,7 @@ def Post_V4_To_S3(access_token, v4):
                 "resumableTotalChunks": 1
         }
 
-        r = requests.post(upload_url, headers=headers, params=params, files=files)
+        r = requests.post(upload_url, headers=headers, params=params, files=files, verify=False)
         if r.status_code != 200:  #
             raise Exception('{} returned error {}'.format(upload_url, r.status_code))
     
