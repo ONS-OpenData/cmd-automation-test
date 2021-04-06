@@ -1,5 +1,4 @@
-import requests
-import json
+import requests, json, os, datetime
 
 def Get_Access_Token(credentials): # create inputs for email and password
     ### getting access_token ###
@@ -30,7 +29,7 @@ def Get_Recipe_Api(access_token):
     recipe_api_url = 'https://publishing.develop.onsdigital.co.uk/recipes'
     headers = {'X-Florence-Token':access_token}
     
-    r = requests.get(recipe_api_url, headers=headers)
+    r = requests.get(recipe_api_url + '?limit=1000', headers=headers)
     
     if r.status_code == 200:
         recipe_dict = r.json()
@@ -108,8 +107,23 @@ def Get_Dataset_Instances_Api(access_token):
     headers = {'X-Florence-Token':access_token}
     
     r = requests.get(dataset_instances_api_url, headers=headers)
+    
+    r = requests.get(dataset_instances_api_url + '?limit=1000', headers=headers)
     if r.status_code == 200:
-        dataset_instances_dict = r.json()
+        whole_dict = r.json()
+        total_count = whole_dict['total_count']
+        if total_count <= 1000:
+            dataset_instances_dict = r.json()['items']
+        elif total_count > 1000:
+            number_of_iterations = round(total_count / 1000) + 1
+            offset = 0
+            dataset_instances_dict = []
+            for i in range(number_of_iterations):
+                new_url = dataset_instances_api_url + '?limit=1000&offset={}'.format(offset)
+                new_dict = requests.get(new_url, headers=headers).json()
+                for item in new_dict['items']:
+                    dataset_instances_dict.append(item)
+                offset += 1000
         return dataset_instances_dict
     else:
         raise Exception('/dataset/instances API returned a {} error'.format(r.status_code))
@@ -149,25 +163,41 @@ def Get_Dataset_Jobs_Api(access_token):
     headers = {'X-Florence-Token':access_token}
 
     r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers)
+    
+    r = requests.get(dataset_jobs_api_url + '?limit=1000', headers=headers)
     if r.status_code == 200:
-        dataset_jobs_dict = r.json()
+        whole_dict = r.json()
+        total_count = whole_dict['total_count']
+        if total_count <= 1000:
+            dataset_jobs_dict = whole_dict['items']
+        elif total_count > 1000:
+            number_of_iterations = round(total_count / 1000) + 1
+            offset = 0
+            dataset_jobs_dict = []
+            for i in range(number_of_iterations):
+                new_url = dataset_jobs_api_url + '?limit=1000&offset={}'.format(offset)
+                new_dict = requests.get(new_url, headers=headers).json()
+                for item in new_dict['items']:
+                    dataset_jobs_dict.append(item)
+                offset += 1000
         return dataset_jobs_dict
     else:
         raise Exception('/dataset/jobs API returned a {} error'.format(r.status_code))
         
         
-def Get_Latest_Job_Id(access_token):
+def Get_Latest_Job_Info(access_token):
     '''
-    Returns latest job id and recipe id
+    Returns latest job id and recipe id and instance id
     Uses Get_Dataset_Jobs_Api()
     '''
     dataset_jobs_dict = Get_Dataset_Jobs_Api(access_token)
-    latest_id = dataset_jobs_dict['items'][-1]['id']
-    recipe_id = dataset_jobs_dict['items'][-1]['recipe'] # to be used as a quick check
-    return latest_id, recipe_id
+    latest_id = dataset_jobs_dict[-1]['id']
+    recipe_id = dataset_jobs_dict[-1]['recipe'] # to be used as a quick check
+    instance_id = dataset_jobs_dict[-1]['links']['instances'][0]['id']
+    return latest_id, recipe_id, instance_id
 
 
-def Create_New_Job(access_token, dataset_id, aws_link):
+def Post_New_Job(access_token, dataset_id, s3_url):
     '''
     Creates a new job in the /dataset/jobs API
     Job is created in state 'created'
@@ -185,7 +215,7 @@ def Create_New_Job(access_token, dataset_id, aws_link):
         'files':[
             {
         'alias_name':dataset_dict['recipe_alias'],
-        'url':aws_link
+        'url':s3_url
             }   
         ]
     }
@@ -197,38 +227,15 @@ def Create_New_Job(access_token, dataset_id, aws_link):
         raise Exception('Job not created, return a {} error'.format(r.status_code))
         
     # return job ID
-    job_id, job_recipe_id = Get_Latest_Job_Id(access_token)
-    dataset_instance_id = Get_Latest_Dataset_Instances(access_token)
+    job_id, job_recipe_id, job_instance_id = Get_Latest_Job_Info(access_token)
+    
     # quick check to make sure newest job id is the correct one
     if job_recipe_id != dataset_dict['recipe_id']:
         print('New job recipe ID ({}) does not match recipe ID used to create new job ({})'.format(job_recipe_id, dataset_dict['recipe_id']))
     else:
-        print('job_id - ', job_id)
-        print('dataset_instance_id - ', dataset_instance_id)
+        print('job_id -', job_id)
+        print('dataset_instance_id -', job_instance_id)
         return job_id
-
-
-def Add_File_To_Existing_Job(access_token, dataset_id, job_id, aws_link):
-    '''
-    Adds file to a job
-    Only needed if file wasnt originally attached to new job - ie files = []
-    '''
-
-    dataset_dict = Get_Recipe_Info(access_token, dataset_id)
-    
-    attaching_file_to_job_url = 'https://publishing.develop.onsdigital.co.uk/dataset/jobs/' + job_id + '/files'
-    headers = {'X-Florence-Token':access_token}
-    
-    added_file_json = {
-            'alias_name':dataset_dict['recipe_alias'],
-            'url':aws_link
-            }
-
-    r = requests.put(attaching_file_to_job_url, headers=headers, json=added_file_json)
-    if r.status_code == 200:
-        print('File added successfully')
-    else:
-        print('Error code {} from Add_File_To_Existing_Job'.format(r.status_code))
 
 
 def Update_State_Of_Job(access_token, job_id):
@@ -270,8 +277,8 @@ def Get_Job_Info(access_token, job_id):
     else:
         raise Exception('/dataset/jobs/{} returned error {}'.format(job_id, r.status_code))
 
-
-def Upload_Data_To_Florence(credentials, dataset_id, aws_link):
+    
+def Upload_Data_To_Florence(credentials, dataset_id, v4):
     '''Uploads v4 to florence'''
     # get access_token
     access_token = Get_Access_Token(credentials)
@@ -279,8 +286,48 @@ def Upload_Data_To_Florence(credentials, dataset_id, aws_link):
     #quick check to make sure recipe exists in API
     Check_Recipe_Exists(access_token, dataset_id)
     
+    # upload v4 into s3 bucket
+    s3_url = Post_V4_To_S3(access_token, v4)
+    
     # create new job
-    job_id = Create_New_Job(access_token, dataset_id, aws_link)
+    job_id = Post_New_Job(access_token, dataset_id, s3_url)
     
     # update state of job
     Update_State_Of_Job(access_token, job_id)
+
+def Post_V4_To_S3(access_token, v4):
+    '''
+    Uploading a v4 to the s3 bucket
+    v4 is full file path
+    '''
+    csv_size = str(os.path.getsize(v4)) # Size of the csv
+    timestamp = datetime.datetime.now() # to be ued as unique resumableIdentifier
+    timestamp = datetime.datetime.strftime(timestamp, '%d%m%y%H%M%S')
+    file_name = v4.split("/")[-1]
+    
+    upload_url = 'https://publishing.develop.onsdigital.co.uk/upload'
+    headers = {'X-Florence-Token':access_token}
+    with open(v4, 'rb') as f:
+        # Inlcude the opened file in the request
+        files = {'file': f}
+        # Params that can be added to the request
+        # Uploading it as a single chunk of the exact size of the file in question
+        params = {
+                "resumableType": "text/csv",
+                "resumableChunkNumber": 1,
+                "resumableCurrentChunkSize": csv_size,
+                "resumableTotalSize": csv_size,
+                "resumableChunkSize": csv_size,
+                "resumableIdentifier": timestamp + '-' + file_name.replace('.', ''),
+                "resumableFilename": file_name,
+                "resumableRelativePath": ".",
+                "resumableTotalChunks": 1
+        }
+
+        r = requests.post(upload_url, headers=headers, params=params, files=files)
+        if r.status_code != 200:  #
+            raise Exception('{} returned error {}'.format(upload_url, r.status_code))
+    
+    s3_url = 'https://s3-eu-west-1.amazonaws.com/ons-dp-develop-publishing-uploaded-datasets/{}'.format(params['resumableIdentifier'])
+    return s3_url
+            
