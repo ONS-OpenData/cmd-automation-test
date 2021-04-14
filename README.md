@@ -8,4 +8,5 @@ The idea is that running main.py will trigger the transform to run and then uplo
 
 Before running
 - Make sure the source data is in this repo
+- Source data includes the previous v4
 - Update florence-details.json with your email and password
